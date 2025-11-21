@@ -1,1 +1,655 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Air Travel Assistant</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f7ff;
+        }
+        .container {
+            background: red;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 100, 200, 0.1);
+        }
+        h1 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #query-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #b3d4ff;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        #submit-btn {
+            padding: 12px 24px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        #submit-btn:hover {
+            background-color: #004d99;
+        }
+        #submit-btn:disabled {
+            background-color: #b3d4ff;
+            cursor: not-allowed;
+        }
+        #response-area {
+            min-height: 150px;
+            padding: 20px;
+            background: #e6f2ff;
+            border-radius: 8px;
+            border-left: 4px solid #0066cc;
+            line-height: 1.6;
+        }
+        .loading {
+            color: #0066cc;
+            font-style: italic;
+        }
+        .quick-tips {
+            margin-top: 30px;
+        }
+        .tips-title {
+            color: #0056b3;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .tip-card {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #b3d4ff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tip-card:hover {
+            background: #e6f2ff;
+            transform: translateY(-2px);
+        }
+        .tip-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+        
+        /* Auth related styles */
+        .auth-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .auth-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .auth-btn {
+            padding: 8px 16px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .auth-btn:hover {
+            background-color: #004d99;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        .modal-title {
+            color: #0056b3;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #0056b3;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #b3d4ff;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-error {
+            color: #d32f2f;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .form-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .form-submit:hover {
+            background-color: #004d99;
+        }
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+        .close-modal:hover {
+            color: #333;
+        }
+        .auth-status {
+            font-weight: 500;
+        }
+        #user-welcome {
+            color: #0066cc;
+        }
+        .hidden {
+            display: none;
+        }
+        .username-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-container">
+            <div class="auth-status">
+                <span id="user-welcome" class="hidden">Welcome, <span id="username-display"></span>!</span>
+                <span id="guest-message">Sign in for personalized airport assistance</span>
+            </div>
+            <div class="auth-buttons" id="auth-buttons">
+                <button class="auth-btn" id="signin-btn">Sign In</button>
+                <button class="auth-btn" id="signup-btn">Sign Up</button>
+            </div>
+            <div class="auth-buttons hidden" id="logout-button">
+                <button class="auth-btn" id="logout-btn">Sign Out</button>
+            </div>
+        </div>
+        
+        <h1>✈️ AI Air Travel Assistant</h1>
+        
+        <div class="input-group">
+            <input type="text" id="query-input" placeholder="Ask about security, gates, lounges, connections..." />
+            <button id="submit-btn">Get Guidance</button>
+        </div>
+        
+        <div id="response-area">
+            Ask me anything about navigating airports - security wait times, terminal transfers, amenities, and more!
+        </div>
+        
+        <div class="quick-tips">
+            <div class="tips-title">Quick Help Topics:</div>
+            <div class="tips-grid">
+                <div class="tip-card" onclick="useTip(this)">
+                    <span class="tip-icon">🛂</span> TSA PreCheck tips
+                </div>
+                <div class="tip-card" onclick="useTip(this)">
+                    <span class="tip-icon">🧳</span> Baggage allowance
+                </div>
+                <div class="tip-card" onclick="useTip(this)">
+                    <span class="tip-icon">🍴</span> Dining options
+                </div>
+                <div class="tip-card" onclick="useTip(this)">
+                    <span class="tip-icon">🚕</span> Ground transportation
+                </div>
+                <div class="tip-card" onclick="useTip(this)">
+                    <span class="tip-icon">♿</span> Accessibility services
+                </div>
+                <div class="tip-card" onclick="useTip(this)">
+                    <span class="tip-icon">🛍️</span> Duty free shopping
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign In Modal -->
+    <div class="modal" id="signin-modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('signin-modal')">&times;</span>
+            <h2 class="modal-title">Sign In</h2>
+            <form id="signin-form">
+                <div class="form-group">
+                    <label class="form-label" for="signin-username">Username (8 digits)</label>
+                    <input type="text" id="signin-username" class="form-input" placeholder="Enter your 8-digit username" maxlength="8" required>
+                    <div class="form-error" id="signin-username-error">Please enter a valid 8-digit username</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signin-password">Password</label>
+                    <input type="password" id="signin-password" class="form-input" placeholder="Enter your password" required>
+                    <div class="form-error" id="signin-password-error">Please enter your password</div>
+                </div>
+                <div class="form-error" id="signin-error">Invalid username or password</div>
+                <button type="submit" class="form-submit">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sign Up Modal -->
+    <div class="modal" id="signup-modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('signup-modal')">&times;</span>
+            <h2 class="modal-title">Create Account</h2>
+            <form id="signup-form">
+                <div class="form-group">
+                    <label class="form-label" for="signup-username">Username</label>
+                    <input type="text" id="signup-username" class="form-input" placeholder="Enter an 8-digit username" maxlength="8" required>
+                    <div class="username-hint">Must be exactly 8 digits (0-9)</div>
+                    <div class="form-error" id="signup-username-error">Username must be exactly 8 digits</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-email">Email</label>
+                    <input type="email" id="signup-email" class="form-input" placeholder="Enter your email" required>
+                    <div class="form-error" id="signup-email-error">Please enter a valid email</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-password">Password</label>
+                    <input type="password" id="signup-password" class="form-input" placeholder="Create a password" required>
+                    <div class="form-error" id="signup-password-error">Password must be at least 6 characters</div>
+                </div>
+                <div class="form-error" id="signup-error">Error creating account</div>
+                <button type="submit" class="form-submit">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Authentication state
+        let isAuthenticated = false;
+        let currentUser = null;
+        let authToken = localStorage.getItem('authToken');
+        
+        // Check if user is already logged in on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (authToken) {
+                // Fetch user profile using stored token
+                fetchUserProfile(authToken);
+            }
+        });
+        
+        // Authentication Functions
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            // Clear previous errors
+            document.querySelectorAll('.form-error').forEach(error => {
+                error.style.display = 'none';
+            });
+            // Clear form fields
+            document.querySelector(`#${modalId} form`).reset();
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function updateAuthUI(user) {
+            if (user) {
+                document.getElementById('user-welcome').classList.remove('hidden');
+                document.getElementById('guest-message').classList.add('hidden');
+                document.getElementById('username-display').textContent = user.username;
+                document.getElementById('auth-buttons').classList.add('hidden');
+                document.getElementById('logout-button').classList.remove('hidden');
+                isAuthenticated = true;
+                currentUser = user;
+            } else {
+                document.getElementById('user-welcome').classList.add('hidden');
+                document.getElementById('guest-message').classList.remove('hidden');
+                document.getElementById('auth-buttons').classList.remove('hidden');
+                document.getElementById('logout-button').classList.add('hidden');
+                isAuthenticated = false;
+                currentUser = null;
+            }
+        }
+        
+        async function fetchUserProfile(token) {
+            try {
+                const response = await fetch('/api/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch profile');
+                }
+                
+                const userData = await response.json();
+                updateAuthUI(userData);
+            } catch (error) {
+                console.error('Profile fetch error:', error);
+                localStorage.removeItem('authToken');
+                updateAuthUI(null);
+            }
+        }
+        
+        // Form validation
+        function validateUsername(username) {
+            return /^\d{8}$/.test(username);
+        }
+        
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+        
+        function validatePassword(password) {
+            return password.length >= 6;
+        }
+        
+        // Event Listeners
+        document.getElementById('signin-btn').addEventListener('click', () => {
+            showModal('signin-modal');
+        });
+        
+        document.getElementById('signup-btn').addEventListener('click', () => {
+            showModal('signup-modal');
+        });
+        
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            updateAuthUI(null);
+        });
+        
+        // Sign In Form Submission
+        document.getElementById('signin-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('signin-username').value.trim();
+            const password = document.getElementById('signin-password').value;
+            
+            // Validate inputs
+            let hasError = false;
+            
+            if (!validateUsername(username)) {
+                document.getElementById('signin-username-error').style.display = 'block';
+                hasError = true;
+            } else {
+                document.getElementById('signin-username-error').style.display = 'none';
+            }
+            
+            if (!password) {
+                document.getElementById('signin-password-error').style.display = 'block';
+                hasError = true;
+            } else {
+                document.getElementById('signin-password-error').style.display = 'none';
+            }
+            
+            if (hasError) return;
+            
+            try {
+                const response = await fetch('/api/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Invalid credentials');
+                }
+                
+                const data = await response.json();
+                
+                // Store the token
+                localStorage.setItem('authToken', data.token);
+                
+                // Update UI
+                updateAuthUI(data.user);
+                
+                // Close modal
+                closeModal('signin-modal');
+                
+            } catch (error) {
+                document.getElementById('signin-error').textContent = error.message;
+                document.getElementById('signin-error').style.display = 'block';
+            }
+        });
+        
+        // Sign Up Form Submission
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('signup-username').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            
+            // Validate inputs
+            let hasError = false;
+            
+            if (!validateUsername(username)) {
+                document.getElementById('signup-username-error').style.display = 'block';
+                hasError = true;
+            } else {
+                document.getElementById('signup-username-error').style.display = 'none';
+            }
+            
+            if (!validateEmail(email)) {
+                document.getElementById('signup-email-error').style.display = 'block'; 
+                hasError = true;
+            } else {
+                document.getElementById('signup-email-error').style.display = 'none';
+            }
+            
+            if (!validatePassword(password)) {
+                document.getElementById('signup-password-error').style.display = 'block';
+                hasError = true;
+            } else {
+                document.getElementById('signup-password-error').style.display = 'none';
+            }
+            
+            if (hasError) return;
+            
+            try {
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to create account');
+                }
+                
+                const data = await response.json();
+                
+                // Store the token
+                localStorage.setItem('authToken', data.token);
+                
+                // Fetch user profile with the new token
+                await fetchUserProfile(data.token);
+                
+                // Close modal
+                closeModal('signup-modal');
+                
+            } catch (error) {
+                document.getElementById('signup-error').textContent = error.message;
+                document.getElementById('signup-error').style.display = 'block';
+            }
+        });
+        
+        // Original airport navigator functionality
+        function useTip(element) {
+            document.getElementById('query-input').value = element.textContent.replace(/[^a-zA-Z ]/g, '').trim();
+            document.getElementById('query-input').focus();
+        }
+
+        document.getElementById('submit-btn').addEventListener('click', async () => {
+            const query = document.getElementById('query-input').value.trim();
+            const responseArea = document.getElementById('response-area');
+            const button = document.getElementById('submit-btn');
+            
+            if (!query) return;
+            
+            responseArea.innerHTML = '<span class="loading">Checking airport systems...</span>';
+            button.disabled = true;
+            
+            try {
+                // Include auth token if available
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (authToken) {
+                    headers['x-auth-token'] = authToken;
+                }
+                
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ query })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Airport systems unavailable');
+                }
+                
+                responseArea.innerHTML = data.reply.replace(/\n/g, '<br>');
+            } catch (error) {
+                responseArea.innerHTML = `<span style="color:#d32f2f">⚠️ ${error.message}</span>`;
+            } finally {
+                button.disabled = false;
+            }
+        });
+        
+        document.getElementById('query-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('submit-btn').click();
+            }
+        });
+        
+        // Close modals when clicking outside
+        window.addEventListener('click', (event) => {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+        // Update the existing JavaScript in index.html
+
+// Sign In Form Submission
+document.getElementById('signin-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('signin-username').value.trim();
+    const password = document.getElementById('signin-password').value;
+
+    try {
+        const response = await fetch('/api/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Sign-in failed');
+        }
+
+        const data = await response.json();
+        localStorage.setItem('authToken', data.token);
+        updateAuthUI(data.user);
+        closeModal('signin-modal');
+    } catch (error) {
+        document.getElementById('signin-error').textContent = error.message;
+        document.getElementById('signin-error').style.display = 'block';
+    }
+});
+
+// Sign Up Form Submission
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('signup-username').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+
+    try {
+        const response = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Sign-up failed');
+        }
+
+        closeModal('signup-modal');
+        alert('Account created successfully. Please sign in.');
+    } catch (error) {
+        document.getElementById('signup-error').textContent = error.message;
+        document.getElementById('signup-error').style.display = 'block';
+    }
+});
+    </script>
+</body>
+</html>
